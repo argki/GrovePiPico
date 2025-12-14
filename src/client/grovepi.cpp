@@ -42,19 +42,13 @@
 
 #include "grovepi.h"
 
+#include <errno.h>
+#include <string>
+#include <termios.h>
+
 static const bool DEBUG = false;
-static const int RBUFFER_SIZE = 32;
-static const int WBUFFER_SIZE = 4;
 
-static int file_device = 0;
-static int max_i2c_retries = 5;
-
-static const uint8_t DIGITAL_READ = 1;
-static const uint8_t DIGITAL_WRITE = 2;
-static const uint8_t ANALOG_READ = 3;
-static const uint8_t ANALOG_WRITE = 4;
-static const uint8_t PIN_MODE = 5;
-static const uint8_t USONIC_READ = 7;
+static int serial_fd = -1;
 
 namespace GrovePi
 {
@@ -69,140 +63,20 @@ namespace GrovePi
 
 }
 
-/**
- * determines the revision of the raspberry hardware
- * @return revision number
- */
-static uint8_t gpioHardwareRevision()
-{
-	int revision = 0;
-	FILE * filp = fopen("/proc/cpuinfo", "r");
-	char buffer[512];
-	char term;
-
-	if(filp != NULL)
-	{
-		while(fgets(buffer,sizeof(buffer),filp) != NULL)
-		{
-			if(!strncasecmp("revision\t", buffer, 9))
-			{
-				if(sscanf(buffer + strlen(buffer) - 5, "%x%c", &revision, &term) == 2)
-				{
-					if(term == '\n')
-						break;
-					revision = 0;
-				}
-			}
-		}
-		fclose(filp);
-	}
-	return revision;
-}
-
-/**
- * determines wheter I2C is found at "/dev/i2c-0" or "/dev/i2c-1"
- * depending on the raspberry model
- *
- * @param smbus_name string to hold the filename
- *
- * hw_rev    0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
- * Type.1    X  X  -  -  X  -  -  X  X  X  X  X  -  -  X  X
- * Type.2    -  -  X  X  X  -  -  X  X  X  X  X  -  -  X  X
- * Type.3          X  X  X  X  X  X  X  X  X  X  X  X  X  X
- *
- * hw_rev    16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
- * Type.1    -  X  X  -  -  X  X  X  X  X  -  -  -  -  -  -
- * Type.2    -  X  X  -  -  -  X  X  X  X  -  X  X  X  X  X
- * Type.3    X  X  X  X  X  X  X  X  X  X  X  X  -  -  -  -
- *
- */
 void GrovePi::SMBusName(char *smbus_name)
 {
-	unsigned int hw_revision = gpioHardwareRevision();
-	unsigned int smbus_rev;
-
-	if(hw_revision < 4)
-		// type 1
-		smbus_rev = 1;
-	else if(hw_revision < 16)
-		// type 2
-		smbus_rev = 2;
-	else
-		// type 3
-		smbus_rev = 3;
-
-	if(smbus_rev == 2 || smbus_rev == 3)
-		strcpy(smbus_name, "/dev/i2c-1");
-	else
-		strcpy(smbus_name, "/dev/i2c-0");
+	if(smbus_name)
+		smbus_name[0] = '\0';
 }
 
-/**
- * sets the threshold limit
- * at which an exception is thrown
- * @param _max_i2c_retries number of retries
- */
-void GrovePi::setMaxI2CRetries(int _max_i2c_retries)
+int GrovePi::initDevice(uint8_t)
 {
-	// each failed retry takes 1 second
-	// so the number of [max_i2c_retries]
-	// represents the timeout on a
-	// transaction / connection in seconds
-	max_i2c_retries = _max_i2c_retries;
+	throw I2CError("[initDevice is not supported in USB GrovePi mode]\n");
 }
 
-/**
- * tries to get communication w/ the GrovePi
- * throws I2CError on failing to establish communication
- * @param  7-bit address of the slave device
- */
-void GrovePi::initGrovePi()
+void GrovePi::setMaxI2CRetries(int)
 {
-	file_device = initDevice(GROVE_ADDRESS);
-}
 
-/**
- * for setting the address of an I2C device
- * @param address 7-bit address of the slave device
- */
-int GrovePi::initDevice(uint8_t address)
-{
-	char filename[11];           // enough to hold "/dev/i2c-x"
-	int current_retry = 0;
-	int i2c_file_device;
-	SMBusName(filename);
-
-	// try to connect for a number of times
-	while(current_retry < max_i2c_retries)
-	{
-		// increase the counter
-		current_retry += 1;
-
-		// open port for read/write operation
-		if((i2c_file_device = open(filename, O_RDWR)) < 0)
-		{
-			printf("[failed to open i2c port]\n");
-			// try in the next loop to connect
-			continue;
-		}
-		// setting up port options and address of the device
-		if(ioctl(i2c_file_device, I2C_SLAVE, address) < 0)
-		{
-			printf("[unable to get bus access to talk to slave]\n");
-			// try in the next loop to connect
-			continue;
-		}
-
-		// if it got connected, then exit
-		break;
-	}
-
-	// if connection couldn't be established
-	// throw exception
-	if(current_retry == max_i2c_retries)
-		throw I2CError("[I2CError on opening port]\n");
-
-	return i2c_file_device;
 }
 
 void GrovePi::setGrovePiAddress(uint8_t address)
@@ -210,115 +84,145 @@ void GrovePi::setGrovePiAddress(uint8_t address)
 	GROVE_ADDRESS = address;
 }
 
-/**
- * writes a block of [WBUFFER_SIZE] bytes to the slave i2c device
- * throws I2CError on failing to send data
- * @param  command    command to send to GrovePi
- * @param  pin_number number
- * @param  opt1       optional argument depending on sensor/actuator/etc
- * @param  opt2       optional argument depending on sensor/actuator/etc
- */
-void GrovePi::writeBlock(uint8_t command, uint8_t pin_number, uint8_t opt1, uint8_t opt2)
+void GrovePi::writeBlock(uint8_t, uint8_t, uint8_t, uint8_t)
 {
-	int output_code = -1;
-	int current_retry = 0;
-	uint8_t data_block[WBUFFER_SIZE] = {command, pin_number, opt1, opt2};
-
-	// repeat until it writes the data
-	// or until it fails sending it
-	while(output_code == -1 && current_retry < max_i2c_retries)
-	{
-		output_code = i2c_smbus_write_i2c_block_data(file_device, 1, WBUFFER_SIZE, &data_block[0]);
-		current_retry += 1;
-	}
-
-	// if the error persisted
-	// after retrying for [max_i2c_retries] retries
-	// then throw exception
-	if(output_code == -1)
-		throw I2CError("[I2CError writing block: max retries reached]\n");
+	throw I2CError("[writeBlock is not supported in USB GrovePi mode]\n");
 }
 
-/**
- * sends a single byte to the i2c slave
- * throws I2CError on failing to send data
- * @param  byte_val byte to be sent
- */
-void GrovePi::writeByte(uint8_t byte_val)
+void GrovePi::writeByte(uint8_t)
 {
-	uint8_t data_block[WBUFFER_SIZE] = {byte_val};
-	uint8_t length = 1;
-	int current_retry = 0;
-	int output_code = 0;
-
-	// repeat until it writes the data
-	// or until it fails sending it
-	while(output_code != length && current_retry < max_i2c_retries)
-	{
-		output_code = write(file_device, data_block, length);
-		current_retry += 1;
-	}
-
-	// if the error persisted
-	// after retrying for [max_i2c_retries] retries
-	// then throw exception
-	if(output_code != length)
-		throw I2CError("[I2CError writing byte: max retries reached]\n");
+	throw I2CError("[writeByte is not supported in USB GrovePi mode]\n");
 }
 
-/**
- * reads a block of [RBUFFER_SIZE] bytes from the slave device
- * throws I2CError on failing to read data
- * @param  data_block pointer to hold the read data
- * @return            number of bytes read
- */
-uint8_t GrovePi::readBlock(uint8_t *data_block)
+uint8_t GrovePi::readBlock(uint8_t *)
 {
-	int current_retry = 0;
-	int output_code = 0;
-
-	// repeat until it reads the data
-	// or until it fails sending it
-	while(output_code == 0 && current_retry < max_i2c_retries)
-	{
-		output_code = i2c_smbus_read_i2c_block_data(file_device, 1, RBUFFER_SIZE, data_block);
-		current_retry += 1;
-	}
-
-	// if the error persisted
-	// after retrying for [max_i2c_retries] retries
-	// then throw exception
-	if(output_code == 0)
-		throw I2CError("[I2CError reading block: max retries reached]\n");
-
-	return output_code;
+	throw I2CError("[readBlock is not supported in USB GrovePi mode]\n");
 }
 
-/**
- * reads 1 byte from the slave device
- * throws I2CError on failing to read data
- * @return value read from the slave device
- */
 uint8_t GrovePi::readByte()
 {
-	int current_retry = 0;
-	int output_code = -1;
+	throw I2CError("[readByte is not supported in USB GrovePi mode]\n");
+}
 
-	// repeat until it reads the data
-	// or until it fails sending it
-	while((output_code < 0 || output_code == 255) && current_retry < max_i2c_retries)
+static int open_serial_port()
+{
+	if(serial_fd >= 0)
+		return serial_fd;
+
+	const char *env_path = getenv("GROVEPI_SERIAL");
+	const char *candidates[] = {
+	    env_path,
+	    "/dev/ttyACM0",
+	    "/dev/ttyUSB0",
+	};
+
+	for(size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); ++i)
 	{
-		output_code = i2c_smbus_read_byte(file_device);
-		current_retry += 1;
+		const char *path = candidates[i];
+		if(path == NULL || path[0] == '\0')
+			continue;
+
+		int fd = open(path, O_RDWR | O_NOCTTY | O_NONBLOCK);
+		if(fd < 0)
+			continue;
+
+		struct termios tio;
+		if(tcgetattr(fd, &tio) != 0)
+		{
+			close(fd);
+			continue;
+		}
+
+		cfmakeraw(&tio);
+		cfsetispeed(&tio, B115200);
+		cfsetospeed(&tio, B115200);
+		tio.c_cflag |= (CLOCAL | CREAD);
+		tio.c_cflag &= ~CRTSCTS;
+
+		if(tcsetattr(fd, TCSANOW, &tio) != 0)
+		{
+			close(fd);
+			continue;
+		}
+
+		serial_fd = fd;
+		if(DEBUG)
+			fprintf(stderr, "[GrovePi] opened serial at %s\n", path);
+		break;
 	}
 
-	// if the error persisted
-	// after retrying for [max_i2c_retries] retries
-	// then throw exception
-	if(output_code < 0 || output_code == 255)
-		throw I2CError("[I2CError reading byte: max retries reached]\n");
+	if(serial_fd < 0)
+		throw GrovePi::I2CError("[GrovePiError opening serial device]\n");
 
-	return output_code;
+	return serial_fd;
+}
+
+static void serial_write_line(const std::string &line)
+{
+	int fd = open_serial_port();
+	std::string data = line;
+	data.push_back('\n');
+
+	const char *buf = data.c_str();
+	ssize_t total = 0;
+	ssize_t len = (ssize_t)data.size();
+
+	while(total < len)
+	{
+		ssize_t w = write(fd, buf + total, len - total);
+		if(w < 0)
+		{
+			if(errno == EINTR)
+				continue;
+			throw GrovePi::I2CError("[GrovePiError writing to serial]\n");
+		}
+		total += w;
+	}
+}
+
+static std::string serial_read_line()
+{
+	int fd = open_serial_port();
+	std::string line;
+	char ch;
+	int empty_loops = 0;
+
+	while(true)
+	{
+		ssize_t r = read(fd, &ch, 1);
+		if(r < 0)
+		{
+			// retry if the read is interrupted
+			if(errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)
+			{
+				if(++empty_loops > 5000)
+					throw GrovePi::I2CError("[GrovePiError reading from serial: timeout]\n");
+				usleep(1000);
+				continue;
+			}
+			throw GrovePi::I2CError("[GrovePiError reading from serial]\n");
+		}
+		if(r == 0)
+		{
+			if(++empty_loops > 5000)
+				throw GrovePi::I2CError("[GrovePiError reading from serial: timeout]\n");
+			usleep(1000);
+			continue;
+		}
+
+		if(ch == '\n')
+			break;
+		if(ch == '\r')
+			continue;
+		line.push_back(ch);
+	}
+
+	return line;
+}
+
+void GrovePi::initGrovePi()
+{
+	open_serial_port();
 }
 
 /**
@@ -337,7 +241,13 @@ void GrovePi::delay(unsigned int milliseconds)
  */
 void GrovePi::pinMode(uint8_t pin, uint8_t mode)
 {
-	writeBlock(PIN_MODE, pin, mode);
+	const char *mode_str = (mode == INPUT) ? "INPUT" : "OUTPUT";
+	char buf[64];
+	snprintf(buf, sizeof(buf), "pinMode(%u, %s)", pin, mode_str);
+	serial_write_line(buf);
+	std::string resp = serial_read_line();
+	if(resp == "error")
+		throw I2CError("[GrovePiError in pinMode]\n");
 }
 
 /**
@@ -347,7 +257,13 @@ void GrovePi::pinMode(uint8_t pin, uint8_t mode)
  */
 void GrovePi::digitalWrite(uint8_t pin, bool value)
 {
-	writeBlock(DIGITAL_WRITE, pin, (uint8_t)value);
+	const char *val_str = value ? "HIGH" : "LOW";
+	char buf[64];
+	snprintf(buf, sizeof(buf), "digitalWrite(%u, %s)", pin, val_str);
+	serial_write_line(buf);
+	std::string resp = serial_read_line();
+	if(resp == "error")
+		throw I2CError("[GrovePiError in digitalWrite]\n");
 }
 
 /**
@@ -357,8 +273,14 @@ void GrovePi::digitalWrite(uint8_t pin, bool value)
  */
 bool GrovePi::digitalRead(uint8_t pin)
 {
-	writeBlock(DIGITAL_READ, pin);
-	return readByte();
+	char buf[64];
+	snprintf(buf, sizeof(buf), "digitalRead(%u)", pin);
+	serial_write_line(buf);
+	std::string resp = serial_read_line();
+	if(resp == "error")
+		throw I2CError("[GrovePiError in digitalRead]\n");
+	int v = atoi(resp.c_str());
+	return v != 0;
 }
 
 /**
@@ -368,7 +290,12 @@ bool GrovePi::digitalRead(uint8_t pin)
  */
 void GrovePi::analogWrite(uint8_t pin, uint8_t value)
 {
-	writeBlock(ANALOG_WRITE, pin, value);
+	char buf[64];
+	snprintf(buf, sizeof(buf), "analogWrite(%u, %u)", pin, value);
+	serial_write_line(buf);
+	std::string resp = serial_read_line();
+	if(resp == "error")
+		throw I2CError("[GrovePiError in analogWrite]\n");
 }
 
 /**
@@ -378,14 +305,19 @@ void GrovePi::analogWrite(uint8_t pin, uint8_t value)
  */
 short GrovePi::analogRead(uint8_t pin)
 {
-	uint8_t data[32];
-	writeBlock(ANALOG_READ, pin);
-	readBlock(data);
+	char buf[64];
+	snprintf(buf, sizeof(buf), "analogRead(%u)", pin);
+	serial_write_line(buf);
+	std::string resp = serial_read_line();
+	if(resp == "error")
+		throw I2CError("[GrovePiError in analogRead]\n");
 
-	short output = (data[1] << 8) + data[2];
-	if(output == 65535)
-		output = -1;
-	return output;
+	long raw = strtol(resp.c_str(), NULL, 10);
+	if(raw < 0)
+		return -1;
+	
+	short scaled = (short)(raw >> 6);
+	return scaled;
 }
 
 /**
@@ -395,19 +327,89 @@ short GrovePi::analogRead(uint8_t pin)
  */
 short GrovePi::ultrasonicRead(uint8_t pin)
 {
-	uint8_t incoming[32];
-	short output;
-	writeBlock(USONIC_READ, pin);
-	delay(60);
+	char buf[64];
+	snprintf(buf, sizeof(buf), "ultrasonicRead(%u)", pin);
+	serial_write_line(buf);
+	std::string resp = serial_read_line();
+	if(resp == "error")
+		return -1;
 
-	readByte();
-	readBlock(incoming);
+	long dist = strtol(resp.c_str(), NULL, 10);
+	if(dist < 0)
+		return -1;
+	return (short)dist;
+}
 
-	output = (incoming[1] << 8) + incoming[2];
-	if(output == (2 << 16) - 1)
-		output = -1;
+/**
+ * LCD にテキストを表示する
+ * @param  bus   I2C バス番号 (0/1)
+ * @param  text  表示文字列（最大 32 文字程度を推奨）
+ */
+void GrovePi::setText(uint8_t bus, const char *text)
+{
+	if(text == NULL)
+		text = "";
 
-	return output;
+	std::string t(text);
+	for(size_t i = 0; i < t.size(); ++i)
+	{
+		if(t[i] == '\r' || t[i] == '\n')
+			t[i] = ' ';
+	}
+
+	char header[32];
+	snprintf(header, sizeof(header), "setText(%u, ", bus);
+
+	std::string cmd(header);
+	cmd += t;
+	cmd.push_back(')');
+
+	serial_write_line(cmd);
+	std::string resp = serial_read_line();
+	if(resp == "error")
+		throw I2CError("[GrovePiError in setText]\n");
+}
+
+/**
+ * LCD のバックライト色を設定する
+ * @param  bus I2C バス番号 (0/1)
+ * @param  r   赤成分 (0-255)
+ * @param  g   緑成分 (0-255)
+ * @param  b   青成分 (0-255)
+ */
+void GrovePi::setRGB(uint8_t bus, uint8_t r, uint8_t g, uint8_t b)
+{
+	char buf[64];
+	snprintf(buf, sizeof(buf), "setRGB(%u, %u, %u, %u)", bus, r, g, b);
+	serial_write_line(buf);
+	std::string resp = serial_read_line();
+	if(resp == "error")
+		throw I2CError("[GrovePiError in setRGB]\n");
+}
+
+/**
+ * DHT 温湿度センサーから値を取得する
+ * @param  pin          センサー接続ピン (16/18/20 など)
+ * @param  module_type  0=BLUE(DHT11), 1=WHITE(DHT22)
+ * @param  temp         取得した温度[℃]
+ * @param  humidity     取得した湿度[%]
+ */
+void GrovePi::dhtRead(uint8_t pin, uint8_t module_type, float &temp, float &humidity)
+{
+	char buf[64];
+	snprintf(buf, sizeof(buf), "dhtRead(%u, %u)", pin, module_type);
+	serial_write_line(buf);
+	std::string resp = serial_read_line();
+	if(resp == "error")
+		throw I2CError("[GrovePiError in dhtRead]\n");
+
+	float t = 0.0f;
+	float h = 0.0f;
+	if(sscanf(resp.c_str(), "%f %f", &t, &h) != 2)
+		throw I2CError("[GrovePiError parsing dhtRead response]\n");
+
+	temp = t;
+	humidity = h;
 }
 
 const char* GrovePi::I2CError::detail()

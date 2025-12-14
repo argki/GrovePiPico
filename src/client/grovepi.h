@@ -8,16 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <linux/i2c-dev.h>
 #include <fcntl.h>
-#include <string.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include <stdexcept>
-#include <time.h>
 
 namespace GrovePi
 {
@@ -30,7 +23,7 @@ namespace GrovePi
 
   void SMBusName(char *smbus_name);
 
-  void initGrovePi();
+  void initGrovePi();  
   int initDevice(uint8_t address);
   void setMaxI2CRetries(int _max_i2c_retries);
   void setGrovePiAddress(uint8_t addr);
@@ -46,6 +39,11 @@ namespace GrovePi
   void analogWrite(uint8_t pin, uint8_t value);
   short analogRead(uint8_t pin);
   short ultrasonicRead(uint8_t pin);
+
+  void setText(uint8_t bus, const char *text);
+  void setRGB(uint8_t bus, uint8_t r, uint8_t g, uint8_t b);
+
+  void dhtRead(uint8_t pin, uint8_t module_type, float &temp, float &humidity);
 
 
   // this class purpose is to give a more meaningful
