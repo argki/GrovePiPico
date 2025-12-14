@@ -45,6 +45,7 @@
 #include <errno.h>
 #include <string>
 #include <termios.h>
+#include <glob.h>
 
 static const bool DEBUG = false;
 
@@ -110,10 +111,42 @@ static int open_serial_port()
 		return serial_fd;
 
 	const char *env_path = getenv("GROVEPI_SERIAL");
+	std::string mac_path;
+	std::string acm_path;
+	std::string usb_path;
+
+	glob_t g_mac;
+	int ret_mac = glob("/dev/tty.usbmodem*", 0, NULL, &g_mac);
+	if(ret_mac == 0)
+	{
+		if(g_mac.gl_pathc > 0)
+			mac_path = g_mac.gl_pathv[0];
+		globfree(&g_mac);
+	}
+
+	glob_t g_acm;
+	int ret_acm = glob("/dev/ttyACM*", 0, NULL, &g_acm);
+	if(ret_acm == 0)
+	{
+		if(g_acm.gl_pathc > 0)
+			acm_path = g_acm.gl_pathv[0];
+		globfree(&g_acm);
+	}
+
+	glob_t g_usb;
+	int ret_usb = glob("/dev/ttyUSB*", 0, NULL, &g_usb);
+	if(ret_usb == 0)
+	{
+		if(g_usb.gl_pathc > 0)
+			usb_path = g_usb.gl_pathv[0];
+		globfree(&g_usb);
+	}
+
 	const char *candidates[] = {
 	    env_path,
-	    "/dev/ttyACM0",
-	    "/dev/ttyUSB0",
+	    mac_path.empty() ? NULL : mac_path.c_str(),
+	    acm_path.empty() ? NULL : acm_path.c_str(),
+	    usb_path.empty() ? NULL : usb_path.c_str(),
 	};
 
 	for(size_t i = 0; i < sizeof(candidates) / sizeof(candidates[0]); ++i)

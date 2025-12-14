@@ -1,0 +1,18 @@
+# Python / MicroPython 共通
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Raspberry Pi Pico / ビルド成果物
+*.uf2
+*.elf
+*.bin
+build/
+
+# C++ クライアント側のビルド成果物
+/bin/
+*.out
+
+# OS 依存ファイル
+.DS_Store
+Thumbs.db
