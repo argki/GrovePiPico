@@ -43,11 +43,14 @@ setRGB(1, 0, 255, 0)    # I2C1 の LCD バックライトを緑に
 # デバイス確認
 ls /dev/tty.usbmodem*
 
+# picocom をインストール(初回のみ)
+brew install picocom
+
 # 接続
-screen /dev/tty.usbmodem21201
+picocom --echo /dev/tty.usbmodem21201
 ```
 
-終了するには `Ctrl`+`A` → `K` → `y`。
+終了するには `Ctrl`+`A` → `Ctrl`+`X`。
 
 ### Ubuntu
 
@@ -55,16 +58,15 @@ screen /dev/tty.usbmodem21201
 # デバイス確認
 ls /dev/ttyACM*
 
+# picocom をインストール(初回のみ)
+sudo apt update
+sudo apt install -y picocom
+
 # 接続
-screen /dev/ttyACM0
+picocom --echo /dev/ttyACM0
 ```
 
 ### Windows
 
-- Tera Term を起動し、「シリアル」を選んで `COM` ポートを選択。
-- 接続後、メニューから **設定 → シリアルポート** を開き、以下のように設定。
-  - ボーレート: `115200`
-  - データ: `8bit`
-  - パリティ: `none`
-  - ストップ: `1bit`
-  - フロー制御: `none`
+- Tera Term を起動し、「シリアル」を選んで `COM` ポートを選択し、接続。
+- 設定 → 端末 を開き、「ローカルエコー」にチェックを入れる。
