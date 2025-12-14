@@ -36,7 +36,7 @@ using namespace GrovePi;
 
 int main()
 {
-	int pin = 4; // use port D4
+	int pin = 16; // use port D16
 	int state; // variable to hold the ON/OFF state
 
 	try

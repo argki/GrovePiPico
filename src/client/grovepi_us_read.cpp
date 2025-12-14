@@ -36,7 +36,7 @@ using namespace GrovePi;
 
 int main()
 {
-	int pin = 4; // connected to digital port 4 (D4)
+	int pin = 16; // connected to digital port 16 (D16)
 	int incoming; // variable to hold the data
 
 	try

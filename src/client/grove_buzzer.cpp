@@ -40,7 +40,7 @@ using namespace GrovePi;
 
 int main()
 {
-	int buzzer_pin = 8; // Grove Buzzer is connected to digital port D8 on the GrovePi
+	int buzzer_pin = 16; // Grove Buzzer is connected to digital port D16 on the GrovePi
 
 	try
 	{

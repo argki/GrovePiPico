@@ -36,7 +36,7 @@ using namespace GrovePi;
 
 int main()
 {
-	int pin = 3; // we use port D3
+	int pin = 16; // we use port D16
 
 	// for direction = HIGH the value we write increases with each step
 	// for direction = LOW the value we write decreases with each step

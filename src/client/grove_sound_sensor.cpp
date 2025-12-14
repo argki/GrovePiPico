@@ -45,7 +45,7 @@ using namespace GrovePi;
 int main()
 {
 	int sound_sensor_pin = 0; // analog port A0 for the Grove Sound Sensor
-	int LED_pin = 5; // digital port D5 for the Grove LED
+	int LED_pin = 16; // digital port D16 for the Grove LED
 	int threshold_value = 400; // threshold value for the sound levels (values from 0 -> 1023)
 	int sensor_value; // variable to hold the Sound Sensor's value
 

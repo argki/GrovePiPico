@@ -43,7 +43,7 @@ using namespace GrovePi;
 int main()
 {
 	int potentiometer_pin = 0; // potentiometer is connected to A0 port
-	int LED_pin = 5; // potentiometer is connected to D5 port
+	int LED_pin = 16; // potentiometer is connected to D16 port
 
 	int adc_ref = 5; // reference voltage of ADC is 5V
 	int grove_ref_vcc = 5; // Grove's reference voltage is 5V, regularly

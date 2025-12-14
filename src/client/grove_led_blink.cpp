@@ -40,7 +40,7 @@ using namespace GrovePi;
 
 int main()
 {
-	int LED_pin = 4; // Grove LED is connected to digital port D4 on the GrovePi
+	int LED_pin = 16; // Grove LED is connected to digital port D16 on the GrovePi
 
 	try
 	{

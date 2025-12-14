@@ -41,7 +41,7 @@ using namespace GrovePi;
 
 int main()
 {
-	int LED_pin = 5; // Grove LED is connected to digital port D5 on the GrovePi
+	int LED_pin = 16; // Grove LED is connected to digital port D16 on the GrovePi
 	int brigthness = 0; // initial brigthness of 0 (0 to 255)
 
 	try

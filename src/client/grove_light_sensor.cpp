@@ -44,7 +44,7 @@ using namespace GrovePi;
 int main()
 {
 	int light_sensor_pin = 0; // analog port A0 for the Grove Light Sensor
-	int LED_pin = 4; // digital port D4 for the Grove LED
+	int LED_pin = 16; // digital port D16 for the Grove LED
 	int threshold = 10; // threshold value in kOhm for the Grove Light Sensor
 	int sensor_value; // variable to hold the Grove Light Sensor value
 	float resistance; // variable to hold the Grove Light Sensor's resistance value

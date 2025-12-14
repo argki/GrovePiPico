@@ -41,7 +41,7 @@ using namespace GrovePi;
 
 int main()
 {
-	int button_pin = 4; // Grove Button is connected to digital port D4 on the GrovePi
+	int button_pin = 16; // Grove Button is connected to digital port D16 on the GrovePi
 	int button_state; // variable to hold the current state of the button
 
 	try

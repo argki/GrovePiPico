@@ -36,7 +36,7 @@ using namespace GrovePi;
 
 int main()
 {
-	int pin = 4; // we use port D4
+	int pin = 16; // we use port D16
 	int period = 500; // measured in ms
 
 	try

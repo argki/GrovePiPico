@@ -41,7 +41,7 @@ using namespace GrovePi;
 
 int main()
 {
-	int relay_pin = 4; // Grove Relay is connected to digital port D4 on the GrovePi
+	int relay_pin = 16; // Grove Relay is connected to digital port D16 on the GrovePi
 
 	try
 	{
