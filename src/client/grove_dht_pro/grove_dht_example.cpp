@@ -74,14 +74,14 @@ int main()
 	catch(I2CError &error)
 	{
 		// I2C error while reading / writing
-		printf(error.detail());
+		printf("%s", error.detail());
 		return -1;
 	}
 	catch(std::runtime_error &e)
 	{
 		// catch error on number values
 		// NaN & bad value readings
-		printf(e.what());
+		printf("%s", e.what());
 		return -2;
 	}
 

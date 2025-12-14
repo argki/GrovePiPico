@@ -69,7 +69,7 @@ int main()
 	}
 	catch(I2CError &error)
 	{
-		printf(error.detail());
+		printf("%s", error.detail());
 
 		return -1;
 	}
