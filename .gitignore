@@ -12,6 +12,7 @@ build/
 # C++ クライアント側のビルド成果物
 /bin/
 *.out
+*.o
 
 # OS 依存ファイル
 .DS_Store
