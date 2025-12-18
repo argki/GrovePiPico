@@ -20,7 +20,8 @@
 ## 動作確認
 
 - VS Code左下のステータスが「Pico Connected」の状態では、`main.py`でのシリアル通信が正常に動作しないため、「Pico Disconnected」の状態になった後USBを抜き差ししてから動作確認する必要あり。
-- 接続方法は後述
+  - 接続方法は後述
+- Grove - LCD RGB Backlight（V4.0）に文字を表示するには、5V/3V3 切替スイッチをVCC=5Vにする必要あり。
 
 
 ```bash
